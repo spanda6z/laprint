@@ -1,0 +1,10 @@
+{
+  "name": "laprint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LA😂PRINT — Discovery-first Solana market intelligence",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "serve": "npx --yes serve ."
+  }
+}
