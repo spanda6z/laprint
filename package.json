@@ -3,8 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "description": "LA😂PRINT — Discovery-first Solana market intelligence",
+  "homepage": "https://github.com/spanda6z/laprint",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spanda6z/laprint.git"
+  },
+  "license": "MIT",
   "scripts": {
     "start": "python3 -m http.server 8080",
-    "serve": "npx --yes serve ."
-  }
+    "serve": "npx --yes serve . -p 8080",
+    "demo": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "solana",
+    "defi",
+    "market-intelligence",
+    "discovery",
+    "trading"
+  ]
 }
