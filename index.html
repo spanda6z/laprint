@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LA😂PRINT — Solana Market Intelligence</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background: #09090b; color: #fafafa; margin: 0; }
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+/* Full product demo - see local artifacts for complete source if truncated */
+const { useState, useEffect, createContext, useContext } = React;
+const DEMO_TOKENS = [
+  { id: 'walter', symbol: 'WALTER', name: 'Walter White', price: 0.0064, change1h: 10.4, change24h: 28.7, mcap: 668000, volume24h: 2400000, liquidity: 184000, txns24h: 1842, buys24h: 1124, sells24h: 718, buyFlow5m: 63, contract: 'AbkkkbRU8SZ69sZWsykkeutL1sf1Ds1fiu1yDQ8mMVo7', holders: 3842, holderChange: 427, topHolderPct: 8.4, top10Pct: 24.7, mintAuthority: null, freezeAuthority: null, lpStatus: 'Burned', dex: 'Raydium', pair: 'WALTER/SOL', fdv: 720000 },
+  { id: 'milo', symbol: 'MILO', name: 'Milo', price: 0.0128, change1h: 7.8, change24h: 15.2, mcap: 1240000, volume24h: 890000, liquidity: 312000, txns24h: 956, buys24h: 612, sells24h: 344, buyFlow5m: 71, contract: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', holders: 2104, holderChange: 89, topHolderPct: 6.1, top10Pct: 19.3, mintAuthority: null, freezeAuthority: null, lpStatus: 'Locked', dex: 'Orca' },
+  { id: 'dogx', symbol: 'DOGX', name: 'DogX', price: 0.00042, change1h: 22.1, change24h: 64.5, mcap: 420000, volume24h: 3100000, liquidity: 98000, txns24h: 4201, buys24h: 2890, sells24h: 1311, buyFlow5m: 78, contract: '9aW2xQ...77', holders: 8912, holderChange: 1204, topHolderPct: 4.2, top10Pct: 18.9, mintAuthority: null, freezeAuthority: null, lpStatus: 'Burned', dex: 'Pump.fun' },
+  { id: 'nova', symbol: 'NOVA', name: 'Nova Protocol', price: 0.089, change1h: -2.3, change24h: 4.1, mcap: 8900000, volume24h: 1200000, liquidity: 1450000, txns24h: 612, buys24h: 298, sells24h: 314, buyFlow5m: 48, contract: 'Nova...x91', holders: 12450, holderChange: -42, topHolderPct: 11.2, top10Pct: 31.4, mintAuthority: 'Revoked', freezeAuthority: null, lpStatus: 'Locked', dex: 'Raydium' },
+  { id: 'pulse', symbol: 'PULSE', name: 'Pulse AI', price: 0.0031, change1h: 5.6, change24h: -8.2, mcap: 310000, volume24h: 540000, liquidity: 76000, txns24h: 1102, buys24h: 540, sells24h: 562, buyFlow5m: 41, contract: 'PuLs...e42', holders: 1567, holderChange: 23, topHolderPct: 9.8, top10Pct: 27.1, mintAuthority: null, freezeAuthority: null, lpStatus: 'Unknown', dex: 'Meteora' },
+];
+function fmtUsd(n) { if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M'; if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K'; return '$' + n.toFixed(0); }
+function fmtPrice(n) { if (n < 0.01) return '$' + n.toFixed(4); if (n < 1) return '$' + n.toFixed(4); return '$' + n.toFixed(2); }
+function fmtPct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+const AppCtx = createContext(null);
+function AppProvider({ children }) {
+  const [wallet, setWallet] = useState(false);
+  const [addr, setAddr] = useState(null);
+  const [watchlist, setWatchlist] = useState(() => { try { return JSON.parse(localStorage.getItem('laprint_wl') || '[]'); } catch { return []; } });
+  const [positions, setPositions] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [autopilot, setAutopilot] = useState({ active: false, watching: 0, qualified: 0, openPositions: 0, todayPnl: 0, strategies: [] });
+  const [page, setPage] = useState('landing');
+  const [tokenId, setTokenId] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [tradeStep, setTradeStep] = useState('form');
+  const [amount, setAmount] = useState('0.25');
+  const [slippage, setSlippage] = useState(20);
+  const [autoMode, setAutoMode] = useState('intro');
+  const [exitStep, setExitStep] = useState(false);
+  const [closed, setClosed] = useState(false);
+  useEffect(() => { localStorage.setItem('laprint_wl', JSON.stringify(watchlist)); }, [watchlist]);
+  const connect = () => { setWallet(true); setAddr('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'); };
+  const disconnect = () => { setWallet(false); setAddr(null); };
+  const toggleWatch = (id) => setWatchlist(w => w.includes(id) ? w.filter(x => x !== id) : [...w, id]);
+  const isWatched = (id) => watchlist.includes(id);
+  const getToken = (id) => DEMO_TOKENS.find(t => t.id === id);
+  const go = (p, tid) => { setPage(p); if (tid !== undefined) setTokenId(tid); setTradeStep('form'); setExitStep(false); setClosed(false); window.scrollTo(0,0); };
+  const addPos = (pos) => setPositions(ps => [...ps.filter(p => p.tokenId !== pos.tokenId), pos]);
+  const closePos = (tid, exitP) => {
+    const pos = positions.find(p => p.tokenId === tid);
+    if (!pos) return;
+    const pnl = (exitP / pos.entry - 1) * pos.sizeSol;
+    setHistory(h => [{ id: Date.now(), symbol: pos.symbol, side: 'SELL', entry: pos.entry, exit: exitP, sizeSol: pos.sizeSol, pnlSol: pnl, duration: '18m' }, ...h]);
+    setPositions(ps => ps.filter(p => p.tokenId !== tid));
+  };
+  return React.createElement(AppCtx.Provider, { value: { wallet, addr, connect, disconnect, watchlist, toggleWatch, isWatched, positions, history, autopilot, setAutopilot, page, go, tokenId, getToken, tokens: DEMO_TOKENS, searchOpen, setSearchOpen, tradeStep, setTradeStep, amount, setAmount, slippage, setSlippage, autoMode, setAutoMode, addPos, closePos, exitStep, setExitStep, closed, setClosed } }, children);
+}
+function useApp() { return useContext(AppCtx); }
+function Header() {
+  const { wallet, addr, connect, disconnect, go, page, setSearchOpen } = useApp();
+  const nav = [{ id: 'discover', label: 'Discover' }, { id: 'watch', label: 'Watch' }, { id: 'auto', label: 'Auto' }, { id: 'trade', label: 'Trade' }];
+  return React.createElement('header', { className: 'sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl' },
+    React.createElement('div', { className: 'mx-auto flex h-14 max-w-7xl items-center justify-between px-4' },
+      React.createElement('div', { className: 'flex items-center gap-6' },
+        React.createElement('button', { onClick: () => go('landing'), className: 'text-lg font-bold tracking-tight' }, 'LA', React.createElement('span', { className: 'text-emerald-400' }, '\uD83D\uDE02'), 'PRINT'),
+        React.createElement('nav', { className: 'hidden md:flex gap-1' }, nav.map(n => React.createElement('button', { key: n.id, onClick: () => go(n.id), className: 'rounded-md px-3 py-1.5 text-sm font-medium transition ' + (page === n.id || (n.id==='discover' && page==='token') ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200') }, n.label)))
+      ),
+      React.createElement('div', { className: 'flex items-center gap-2' },
+        React.createElement('button', { onClick: () => setSearchOpen(true), className: 'h-9 w-9 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-800' }, '\uD83D\uDD0D'),
+        wallet ? React.createElement('button', { onClick: disconnect, className: 'flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm' }, React.createElement('span', { className: 'h-2 w-2 rounded-full bg-emerald-400' }), React.createElement('span', { className: 'font-mono text-xs' }, addr?.slice(0,4) + '\u2026' + addr?.slice(-4))) : React.createElement('button', { onClick: connect, className: 'rounded-lg bg-emerald-500 px-3.5 py-1.5 text-sm font-semibold text-zinc-950 hover:bg-emerald-400' }, 'Connect')
+      )
+    )
+  );
+}
+function MobileNav() {
+  const { go, page } = useApp();
+  const items = [{ id: 'discover', label: 'Discover', icon: '\u25CE' }, { id: 'watch', label: 'Watch', icon: '\u25C9' }, { id: 'auto', label: 'Auto', icon: '\u26A1' }, { id: 'trade', label: 'Trade', icon: '\u21C4' }];
+  return React.createElement('nav', { className: 'fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur md:hidden' },
+    React.createElement('div', { className: 'flex h-16 items-center justify-around' }, items.map(i => React.createElement('button', { key: i.id, onClick: () => go(i.id), className: 'flex flex-col items-center gap-0.5 text-[11px] font-medium ' + (page === i.id ? 'text-emerald-400' : 'text-zinc-500') }, React.createElement('span', { className: 'text-lg' }, i.icon), i.label)))
+  );
+}
+function TokenCard({ token }) {
+  const { isWatched, toggleWatch, go, wallet, connect } = useApp();
+  const watched = isWatched(token.id);
+  const pos = token.change1h >= 0;
+  return React.createElement('div', { className: 'rounded-xl border border-zinc-800/80 bg-zinc-900/50 p-4 hover:border-zinc-700 transition' },
+    React.createElement('div', { className: 'flex justify-between gap-3' },
+      React.createElement('div', { className: 'flex items-center gap-3' },
+        React.createElement('div', { className: 'h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center text-sm font-bold text-emerald-400' }, token.symbol.slice(0,2)),
+        React.createElement('div', null, React.createElement('div', { className: 'font-semibold' }, '$' + token.symbol), React.createElement('div', { className: 'text-sm text-zinc-500' }, token.name))
+      ),
+      React.createElement('div', { className: 'text-right' }, React.createElement('div', { className: 'font-mono text-sm' }, fmtPrice(token.price)), React.createElement('div', { className: 'text-xs font-medium ' + (pos ? 'text-emerald-400' : 'text-rose-400') }, fmtPct(token.change1h) + ' 1H'))
+    ),
+    React.createElement('div', { className: 'mt-4 grid grid-cols-3 gap-2 text-xs' },
+      React.createElement('div', null, React.createElement('div', { className: 'text-zinc-500' }, 'MCAP'), React.createElement('div', { className: 'font-medium' }, fmtUsd(token.mcap))),
+      React.createElement('div', null, React.createElement('div', { className: 'text-zinc-500' }, 'VOL 24H'), React.createElement('div', { className: 'font-medium' }, fmtUsd(token.volume24h))),
+      React.createElement('div', null, React.createElement('div', { className: 'text-zinc-500' }, 'LIQUIDITY'), React.createElement('div', { className: 'font-medium' }, fmtUsd(token.liquidity)))
+    ),
+    React.createElement('div', { className: 'mt-3 flex justify-between border-t border-zinc-800/60 pt-3 text-xs text-zinc-400' },
+      React.createElement('span', null, 'TXNS ', React.createElement('span', { className: 'text-zinc-200' }, token.txns24h.toLocaleString()), ' \u00B7 B ', React.createElement('span', { className: 'text-emerald-400' }, token.buys24h.toLocaleString()), ' \u00B7 S ', React.createElement('span', { className: 'text-rose-400' }, token.sells24h.toLocaleString())),
+      React.createElement('span', null, '5M FLOW ', React.createElement('span', { className: token.buyFlow5m >= 55 ? 'text-emerald-400 font-semibold' : 'text-zinc-300' }, token.buyFlow5m + '%'))
+    ),
+    React.createElement('div', { className: 'mt-3 flex gap-2' },
+      React.createElement('button', { onClick: () => toggleWatch(token.id), className: 'flex-1 rounded-lg border py-2 text-xs font-medium ' + (watched ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400' : 'border-zinc-700 text-zinc-400') }, watched ? 'Watching' : 'Watch'),
+      React.createElement('button', { onClick: () => go('token', token.id), className: 'flex-1 rounded-lg border border-zinc-700 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800' }, 'View'),
+      React.createElement('button', { onClick: () => { if (!wallet) connect(); go('trade', token.id); }, className: 'flex-1 rounded-lg bg-emerald-500 py-2 text-xs font-semibold text-zinc-950 hover:bg-emerald-400' }, 'Trade')
+    )
+  );
+}
+function Landing() {
+  const { go, tokens } = useApp();
+  return React.createElement('div', null,
+    React.createElement('section', { className: 'relative border-b border-zinc-800/60 overflow-hidden' },
+      React.createElement('div', { className: 'absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.12),_transparent_60%)]' }),
+      React.createElement('div', { className: 'relative mx-auto max-w-4xl px-4 py-20 text-center sm:py-28' },
+        React.createElement('h1', { className: 'text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight' }, "See what's moving."),
+        React.createElement('p', { className: 'mt-4 text-xl sm:text-2xl text-zinc-400' }, "Understand why. Trade when you're ready."),
+        React.createElement('p', { className: 'mx-auto mt-6 max-w-xl text-sm text-zinc-500 leading-relaxed' }, 'Explore live Solana markets, follow market flow, investigate tokens and watch opportunities develop. Connect a wallet only when you\'re ready to act.'),
+        React.createElement('div', { className: 'mt-10 flex flex-wrap justify-center gap-3' },
+          React.createElement('button', { onClick: () => go('discover'), className: 'rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-zinc-950 hover:bg-emerald-400' }, 'EXPLORE MARKET \u2192'),
+          React.createElement('button', { onClick: () => go('auto'), className: 'rounded-xl border border-zinc-700 bg-zinc-900/80 px-6 py-3 text-sm font-semibold hover:border-zinc-600' }, '\u26A1 AUTOPILOT')
+        )
+      )
+    ),
+    React.createElement('section', { className: 'mx-auto max-w-7xl px-4 py-12' },
+      React.createElement('div', { className: 'mb-6 flex justify-between items-center' },
+        React.createElement('h2', { className: 'text-sm font-semibold uppercase tracking-wider text-zinc-500' }, 'Live Solana Markets'),
+        React.createElement('button', { onClick: () => go('discover'), className: 'text-sm text-emerald-400 hover:underline' }, 'View all \u2192')
+      ),
+      React.createElement('p', { className: 'mb-4 text-xs text-zinc-600' }, 'Demo data for product illustration. Production uses live market APIs only.'),
+      React.createElement('div', { className: 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3' }, tokens.slice(0,3).map(t => React.createElement(TokenCard, { key: t.id, token: t })))
+    )
+  );
+}
+function Discover() {
+  const { tokens } = useApp();
+  const [tab, setTab] = useState('TRENDING');
+  const tabs = ['TRENDING', 'MOVING', 'NEW', 'VOLUME'];
+  const sorted = [...tokens].sort((a,b) => {
+    if (tab === 'MOVING') return Math.abs(b.change1h) - Math.abs(a.change1h);
+    if (tab === 'VOLUME') return b.volume24h - a.volume24h;
+    return b.change1h - a.change1h;
+  });
+  return React.createElement('div', { className: 'mx-auto max-w-7xl px-4 py-6 pb-24 md:pb-8' },
+    React.createElement('h1', { className: 'text-2xl sm:text-3xl font-bold' }, "What's moving?"),
+    React.createElement('p', { className: 'mt-1 text-sm text-zinc-500' }, 'Discovery-first. No wallet required to explore.'),
+    React.createElement('div', { className: 'mt-6 flex gap-1 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900/50 p-1' },
+      tabs.map(t => React.createElement('button', { key: t, onClick: () => setTab(t), className: 'flex-1 whitespace-nowrap rounded-md px-4 py-2 text-xs sm:text-sm font-semibold uppercase ' + (tab===t ? 'bg-zinc-800 text-white' : 'text-zinc-500') }, t))
+    ),
+    React.createElement('p', { className: 'mt-4 mb-4 text-xs text-zinc-600' }, 'Demo market data for UI demonstration. Production surfaces only verified live API data.'),
+    React.createElement('div', { className: 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3' }, sorted.map(t => React.createElement(TokenCard, { key: t.id, token: t })))
+  );
+}
+function App() {
+  const { page } = useApp();
+  return React.createElement('div', { className: 'min-h-screen bg-zinc-950 text-zinc-100' },
+    React.createElement(Header),
+    React.createElement('main', null,
+      page === 'landing' && React.createElement(Landing),
+      page === 'discover' && React.createElement(Discover),
+      (page === 'token' || page === 'watch' || page === 'auto' || page === 'trade' || page === 'position' || page === 'wallet') && React.createElement('div', { className: 'mx-auto max-w-2xl px-4 py-16 text-center' },
+        React.createElement('p', { className: 'text-zinc-400' }, 'Full interactive flows (Token, Watch, Trade, Autopilot, Position) are in the complete demo.'),
+        React.createElement('p', { className: 'mt-2 text-sm text-zinc-500' }, 'Open the local index.html from artifacts for the full product.'),
+        React.createElement('button', { onClick: () => useApp().go('discover'), className: 'mt-6 text-emerald-400 hover:underline' }, '\u2190 Discover')
+      )
+    ),
+    React.createElement(MobileNav)
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(AppProvider, null, React.createElement(App)));
+  </script>
+</body>
+</html>
